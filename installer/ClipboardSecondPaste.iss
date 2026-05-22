@@ -1,5 +1,5 @@
-#define AppName "Clipboard Second Paste"
-#define AppVersion "1.0.0"
+#define AppName "Second Paste for Windows"
+#define AppVersion "1.0.1"
 #define AppPublisher "escfrompoor-cpu"
 
 [Setup]
