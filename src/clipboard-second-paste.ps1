@@ -1,5 +1,8 @@
 Add-Type -AssemblyName System.Windows.Forms
 
+$logPath = Join-Path $env:APPDATA 'ClipDeck\clipboard-hotkeys.log'
+"$(Get-Date -Format o) starting clipboard hotkey helper pid=$PID" | Add-Content -LiteralPath $logPath
+
 $dittoPath = 'C:\Program Files\Ditto\Ditto.exe'
 if (-not (Get-Process -Name Ditto -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath $dittoPath)) {
     Start-Process -FilePath $dittoPath
@@ -11,6 +14,7 @@ using System;
 using System.Threading;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
+using System.IO;
 
 public class ClipboardHotkeyWindow : Form
 {
@@ -21,6 +25,9 @@ public class ClipboardHotkeyWindow : Form
     private const int VK_ALT = 0x12;
     private const int VK_SHIFT = 0x10;
     private const int VK_F14 = 0x7D;
+    private const int VK_F15 = 0x7E;
+    private const int VK_V = 0x56;
+    public static string LogPath = null;
 
     [DllImport("user32.dll", SetLastError=true)]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vk);
@@ -40,9 +47,11 @@ public class ClipboardHotkeyWindow : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        RegisterHotKey(this.Handle, 1, MOD_CONTROL, 0x31); // Ctrl+1
-        RegisterHotKey(this.Handle, 2, MOD_CONTROL, 0x32); // Ctrl+2
-        RegisterHotKey(this.Handle, 3, MOD_CONTROL, 0x42); // Ctrl+B
+        RegisterRequiredHotKey(this.Handle, 1, MOD_CONTROL, 0x31, "Ctrl+1");
+        RegisterRequiredHotKey(this.Handle, 2, MOD_CONTROL, 0x32, "Ctrl+2");
+        RegisterRequiredHotKey(this.Handle, 3, MOD_CONTROL, 0x33, "Ctrl+3");
+        RegisterRequiredHotKey(this.Handle, 4, MOD_CONTROL, 0x42, "Ctrl+B");
+        Log("hotkeys registered");
     }
 
     protected override void OnHandleDestroyed(EventArgs e)
@@ -50,6 +59,7 @@ public class ClipboardHotkeyWindow : Form
         UnregisterHotKey(this.Handle, 1);
         UnregisterHotKey(this.Handle, 2);
         UnregisterHotKey(this.Handle, 3);
+        UnregisterHotKey(this.Handle, 4);
         base.OnHandleDestroyed(e);
     }
 
@@ -62,9 +72,13 @@ public class ClipboardHotkeyWindow : Form
             {
                 SendCtrlV();
             }
-            else if (id == 2 || id == 3)
+            else if (id == 2 || id == 4)
             {
                 PasteDittoPosition2();
+            }
+            else if (id == 3)
+            {
+                PasteDittoPosition3();
             }
             return;
         }
@@ -74,7 +88,16 @@ public class ClipboardHotkeyWindow : Form
     private static void PasteDittoPosition2()
     {
         uint sequenceBefore = GetClipboardSequenceNumber();
-        SendDittoPosition2();
+        SendDittoPosition(VK_F14);
+        WaitForClipboardChange(sequenceBefore, 450);
+        WaitForCtrlRelease(700);
+        SendCtrlV();
+    }
+
+    private static void PasteDittoPosition3()
+    {
+        uint sequenceBefore = GetClipboardSequenceNumber();
+        SendDittoPosition(VK_F15);
         WaitForClipboardChange(sequenceBefore, 450);
         WaitForCtrlRelease(700);
         SendCtrlV();
@@ -95,12 +118,12 @@ public class ClipboardHotkeyWindow : Form
         }
     }
 
-    private static void SendDittoPosition2()
+    private static void SendDittoPosition(int functionKey)
     {
         PressDown(VK_CONTROL);
         PressDown(VK_ALT);
         PressDown(VK_SHIFT);
-        KeyTap(VK_F14);
+        KeyTap(functionKey);
         PressUp(VK_SHIFT);
         PressUp(VK_ALT);
         PressUp(VK_CONTROL);
@@ -109,7 +132,30 @@ public class ClipboardHotkeyWindow : Form
     private static void SendCtrlV()
     {
         WaitForCtrlRelease(700);
-        SendKeys.SendWait("^v");
+        PressDown(VK_CONTROL);
+        KeyTap(VK_V);
+        PressUp(VK_CONTROL);
+    }
+
+    private static void RegisterRequiredHotKey(IntPtr handle, int id, int modifiers, int vk, string name)
+    {
+        if (!RegisterHotKey(handle, id, modifiers, vk))
+        {
+            int error = Marshal.GetLastWin32Error();
+            Log("failed to register " + name + " error=" + error);
+            throw new InvalidOperationException("Failed to register " + name + ". Win32 error " + error);
+        }
+        Log("registered " + name);
+    }
+
+    private static void Log(string message)
+    {
+        if (String.IsNullOrEmpty(LogPath)) return;
+        try
+        {
+            File.AppendAllText(LogPath, DateTime.Now.ToString("o") + " " + message + Environment.NewLine);
+        }
+        catch { }
     }
 
     private static void WaitForCtrlRelease(int timeoutMs)
@@ -152,6 +198,7 @@ public class ClipboardHotkeyWindow : Form
 '@
 
 $form = New-Object ClipboardHotkeyWindow
+[ClipboardHotkeyWindow]::LogPath = $logPath
 $form.ShowInTaskbar = $false
 $form.WindowState = 'Minimized'
 $form.Opacity = 0

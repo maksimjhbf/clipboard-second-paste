@@ -17,3 +17,21 @@ if (-not $iscc) {
 $root = Split-Path -Parent $PSScriptRoot
 $iss = Join-Path $root 'installer\ClipboardSecondPaste.iss'
 & $iscc $iss
+
+$dist = Join-Path $root 'dist'
+New-Item -ItemType Directory -Force -Path $dist | Out-Null
+$zip = Join-Path $dist 'ClipDeck-2.0.0-source.zip'
+if (Test-Path -LiteralPath $zip) {
+    Remove-Item -LiteralPath $zip -Force
+}
+
+$items = @(
+    (Join-Path $root 'README.md'),
+    (Join-Path $root 'LICENSE'),
+    (Join-Path $root 'src'),
+    (Join-Path $root 'scripts'),
+    (Join-Path $root 'installer'),
+    (Join-Path $root 'assets')
+)
+Compress-Archive -LiteralPath $items -DestinationPath $zip -Force
+Write-Host "Built $zip"
