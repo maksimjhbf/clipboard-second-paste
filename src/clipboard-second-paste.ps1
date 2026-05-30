@@ -25,6 +25,7 @@ using System.Text.RegularExpressions;
 public class ClipboardHotkeyWindow : Form
 {
     private const int WM_HOTKEY = 0x0312;
+    private const int MOD_ALT = 0x0001;
     private const int MOD_CONTROL = 0x0002;
     private const int MOD_SHIFT = 0x0004;
     private const int MOD_WIN = 0x0008;
@@ -58,11 +59,11 @@ public class ClipboardHotkeyWindow : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        RegisterRequiredHotKey(this.Handle, 1, MOD_CONTROL, 0x31, "Ctrl+1");
-        RegisterRequiredHotKey(this.Handle, 2, MOD_CONTROL, 0x32, "Ctrl+2");
-        RegisterRequiredHotKey(this.Handle, 3, MOD_CONTROL, 0x33, "Ctrl+3");
-        RegisterRequiredHotKey(this.Handle, 4, MOD_CONTROL, 0x42, "Ctrl+B");
-        RegisterRequiredHotKey(this.Handle, 5, MOD_WIN | MOD_SHIFT, VK_D, "Win+Shift+D");
+        RegisterConfiguredHotKey(this.Handle, 1, "pasteCurrentHotkey", "Ctrl+1");
+        RegisterConfiguredHotKey(this.Handle, 2, "pasteSecondHotkey", "Ctrl+2");
+        RegisterConfiguredHotKey(this.Handle, 3, "pasteThirdHotkey", "Ctrl+3");
+        RegisterOptionalHotKey(this.Handle, 4, MOD_CONTROL, 0x42, "Ctrl+B");
+        RegisterOptionalHotKey(this.Handle, 5, MOD_WIN | MOD_SHIFT, VK_D, "Win+Shift+D");
         Log("hotkeys registered");
     }
 
@@ -194,15 +195,179 @@ public class ClipboardHotkeyWindow : Form
         }
     }
 
-    private static void RegisterRequiredHotKey(IntPtr handle, int id, int modifiers, int vk, string name)
+    private class HotkeySpec
+    {
+        public int Modifiers;
+        public int Vk;
+        public string Name;
+    }
+
+    private static void RegisterConfiguredHotKey(IntPtr handle, int id, string settingName, string fallback)
+    {
+        string configured = ReadSettingString(settingName, fallback);
+        HotkeySpec spec = ParseHotkey(configured);
+        if (spec == null)
+        {
+            Log("invalid " + settingName + "=" + configured + ", using " + fallback);
+            spec = ParseHotkey(fallback);
+        }
+
+        if (spec == null)
+        {
+            Log("failed to parse fallback hotkey " + fallback);
+            return;
+        }
+
+        if (!RegisterHotKey(handle, id, spec.Modifiers, spec.Vk))
+        {
+            int error = Marshal.GetLastWin32Error();
+            Log("failed to register " + spec.Name + " for " + settingName + " error=" + error);
+
+            HotkeySpec fallbackSpec = ParseHotkey(fallback);
+            if (fallbackSpec != null && fallbackSpec.Name != spec.Name)
+            {
+                if (RegisterHotKey(handle, id, fallbackSpec.Modifiers, fallbackSpec.Vk))
+                {
+                    Log("registered fallback " + fallbackSpec.Name + " for " + settingName);
+                }
+                else
+                {
+                    Log("failed to register fallback " + fallbackSpec.Name + " for " + settingName + " error=" + Marshal.GetLastWin32Error());
+                }
+            }
+            return;
+        }
+        Log("registered " + spec.Name + " for " + settingName);
+    }
+
+    private static void RegisterOptionalHotKey(IntPtr handle, int id, int modifiers, int vk, string name)
     {
         if (!RegisterHotKey(handle, id, modifiers, vk))
         {
             int error = Marshal.GetLastWin32Error();
             Log("failed to register " + name + " error=" + error);
-            throw new InvalidOperationException("Failed to register " + name + ". Win32 error " + error);
+            return;
         }
         Log("registered " + name);
+    }
+
+    private static string ReadSettingString(string key, string fallback)
+    {
+        try
+        {
+            if (String.IsNullOrEmpty(SettingsPath) || !File.Exists(SettingsPath)) return fallback;
+            string json = File.ReadAllText(SettingsPath);
+            Match match = Regex.Match(json, "\"" + Regex.Escape(key) + "\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+            if (!match.Success) return fallback;
+            return Regex.Unescape(match.Groups[1].Value);
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
+
+    private static HotkeySpec ParseHotkey(string hotkey)
+    {
+        if (String.IsNullOrWhiteSpace(hotkey)) return null;
+        string[] parts = hotkey.Split(new char[] { '+' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2) return null;
+
+        int modifiers = 0;
+        string keyName = null;
+        foreach (string rawPart in parts)
+        {
+            string part = rawPart.Trim();
+            if (part.Equals("Ctrl", StringComparison.OrdinalIgnoreCase) || part.Equals("Control", StringComparison.OrdinalIgnoreCase))
+            {
+                modifiers |= MOD_CONTROL;
+            }
+            else if (part.Equals("Alt", StringComparison.OrdinalIgnoreCase))
+            {
+                modifiers |= MOD_ALT;
+            }
+            else if (part.Equals("Shift", StringComparison.OrdinalIgnoreCase))
+            {
+                modifiers |= MOD_SHIFT;
+            }
+            else if (part.Equals("Win", StringComparison.OrdinalIgnoreCase) || part.Equals("Windows", StringComparison.OrdinalIgnoreCase))
+            {
+                modifiers |= MOD_WIN;
+            }
+            else
+            {
+                keyName = part;
+            }
+        }
+
+        if (modifiers == 0 || String.IsNullOrWhiteSpace(keyName)) return null;
+        int vk = KeyNameToVirtualKey(keyName);
+        if (vk <= 0) return null;
+
+        return new HotkeySpec { Modifiers = modifiers, Vk = vk, Name = NormalizeHotkeyName(modifiers, keyName) };
+    }
+
+    private static string NormalizeHotkeyName(int modifiers, string keyName)
+    {
+        string name = "";
+        if ((modifiers & MOD_CONTROL) != 0) name += "Ctrl+";
+        if ((modifiers & MOD_ALT) != 0) name += "Alt+";
+        if ((modifiers & MOD_SHIFT) != 0) name += "Shift+";
+        if ((modifiers & MOD_WIN) != 0) name += "Win+";
+        return name + keyName.ToUpperInvariant();
+    }
+
+    private static int KeyNameToVirtualKey(string keyName)
+    {
+        string key = keyName.Trim();
+        if (key.Length == 1)
+        {
+            char c = Char.ToUpperInvariant(key[0]);
+            if (c >= 'A' && c <= 'Z') return (int)c;
+            if (c >= '0' && c <= '9') return (int)c;
+            switch (c)
+            {
+                case '-': return 0xBD;
+                case '=': return 0xBB;
+                case '[': return 0xDB;
+                case ']': return 0xDD;
+                case '\\': return 0xDC;
+                case ';': return 0xBA;
+                case '\'': return 0xDE;
+                case ',': return 0xBC;
+                case '.': return 0xBE;
+                case '/': return 0xBF;
+                case '`': return 0xC0;
+            }
+        }
+
+        Match fKey = Regex.Match(key, "^F([1-9]|1[0-9]|2[0-4])$", RegexOptions.IgnoreCase);
+        if (fKey.Success) return 0x70 + Int32.Parse(fKey.Groups[1].Value) - 1;
+
+        Match numKey = Regex.Match(key, "^Num([0-9])$", RegexOptions.IgnoreCase);
+        if (numKey.Success) return 0x60 + Int32.Parse(numKey.Groups[1].Value);
+
+        switch (key.ToUpperInvariant())
+        {
+            case "SPACE": return 0x20;
+            case "ENTER": return 0x0D;
+            case "TAB": return 0x09;
+            case "ESC":
+            case "ESCAPE": return 0x1B;
+            case "BACKSPACE": return 0x08;
+            case "DELETE": return 0x2E;
+            case "INSERT": return 0x2D;
+            case "HOME": return 0x24;
+            case "END": return 0x23;
+            case "PAGEUP": return 0x21;
+            case "PAGEDOWN": return 0x22;
+            case "UP": return 0x26;
+            case "DOWN": return 0x28;
+            case "LEFT": return 0x25;
+            case "RIGHT": return 0x27;
+        }
+
+        return 0;
     }
 
     public static void Log(string message)

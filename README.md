@@ -2,7 +2,7 @@
 
 ClipDeck is a small Windows 10/11 utility for fast clipboard-history pasting and an optional idle shutdown guard.
 
-Version 2.0 adds the new ClipDeck UI, a desktop shortcut, watchdog-based autostart, and `Ctrl+3` for pasting the third saved clipboard-history item.
+Version 2.0 adds the new ClipDeck UI, a desktop shortcut, watchdog-based autostart, `Ctrl+3` for pasting the third saved clipboard-history item, and editable paste hotkeys.
 
 ## Download
 
@@ -17,9 +17,9 @@ Run it once. ClipDeck configures Ditto, starts the hotkey watchdog, creates a de
 | Hotkey | Action |
 | --- | --- |
 | `Ctrl+V` | Normal Windows paste, unchanged |
-| `Ctrl+1` | Paste the current clipboard item |
-| `Ctrl+2` | Paste the second saved clipboard-history item |
-| `Ctrl+3` | Paste the third saved clipboard-history item |
+| `Ctrl+1` | Paste the current clipboard item; editable in the ClipDeck UI |
+| `Ctrl+2` | Paste the second saved clipboard-history item; editable in the ClipDeck UI |
+| `Ctrl+3` | Paste the third saved clipboard-history item; editable in the ClipDeck UI |
 | `Ctrl+B` | Paste the second saved clipboard-history item |
 | `Win+Shift+D` | Select a screen region and save it as a desktop PNG, when enabled |
 
@@ -28,7 +28,7 @@ Run it once. ClipDeck configures Ditto, starts the hotkey watchdog, creates a de
 ## What You Get
 
 - A compact ClipDeck window with health status for the watchdog, hotkeys, and Ditto.
-- `Ctrl+1`, `Ctrl+2`, and `Ctrl+3` for fast clipboard insertion.
+- `Ctrl+1`, `Ctrl+2`, and `Ctrl+3` for fast clipboard insertion, with clickable shortcut chips for changing them.
 - Optional idle shutdown guard: after 10 minutes without cursor movement, ClipDeck can start a shutdown countdown.
 - Shutdown countdown duration is configurable from 1 to 5 hours.
 - Optional desktop screenshot hotkey: `Win+Shift+D` lets you select a screen region and saves it as a PNG on the desktop without using the clipboard.

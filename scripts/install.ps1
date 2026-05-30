@@ -60,6 +60,9 @@ if (-not (Test-Path -LiteralPath $settingsPath)) {
         idleShutdownEnabled = $false
         idleShutdownHours = 2
         screenshotSaveEnabled = $false
+        pasteCurrentHotkey = 'Ctrl+1'
+        pasteSecondHotkey = 'Ctrl+2'
+        pasteThirdHotkey = 'Ctrl+3'
     } |
         ConvertTo-Json -Depth 3 |
         Set-Content -LiteralPath $settingsPath -Encoding UTF8

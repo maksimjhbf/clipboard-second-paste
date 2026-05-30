@@ -36,6 +36,9 @@ function Initialize-ClipDeckSettings {
             idleShutdownEnabled = $false
             idleShutdownHours = 2
             screenshotSaveEnabled = $false
+            pasteCurrentHotkey = 'Ctrl+1'
+            pasteSecondHotkey = 'Ctrl+2'
+            pasteThirdHotkey = 'Ctrl+3'
         } |
             ConvertTo-Json -Depth 3 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -57,6 +60,18 @@ function Initialize-ClipDeckSettings {
             $settings | Add-Member -NotePropertyName screenshotSaveEnabled -NotePropertyValue $false
             $changed = $true
         }
+        if ($null -eq $settings.PSObject.Properties['pasteCurrentHotkey']) {
+            $settings | Add-Member -NotePropertyName pasteCurrentHotkey -NotePropertyValue 'Ctrl+1'
+            $changed = $true
+        }
+        if ($null -eq $settings.PSObject.Properties['pasteSecondHotkey']) {
+            $settings | Add-Member -NotePropertyName pasteSecondHotkey -NotePropertyValue 'Ctrl+2'
+            $changed = $true
+        }
+        if ($null -eq $settings.PSObject.Properties['pasteThirdHotkey']) {
+            $settings | Add-Member -NotePropertyName pasteThirdHotkey -NotePropertyValue 'Ctrl+3'
+            $changed = $true
+        }
         if ($changed) {
             $settings |
                 ConvertTo-Json -Depth 3 |
@@ -67,6 +82,9 @@ function Initialize-ClipDeckSettings {
             idleShutdownEnabled = $false
             idleShutdownHours = 2
             screenshotSaveEnabled = $false
+            pasteCurrentHotkey = 'Ctrl+1'
+            pasteSecondHotkey = 'Ctrl+2'
+            pasteThirdHotkey = 'Ctrl+3'
         } |
             ConvertTo-Json -Depth 3 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
