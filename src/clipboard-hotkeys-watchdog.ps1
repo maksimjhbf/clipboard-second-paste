@@ -35,6 +35,7 @@ function Initialize-ClipDeckSettings {
         @{
             idleShutdownEnabled = $false
             idleShutdownHours = 2
+            screenshotSaveEnabled = $false
         } |
             ConvertTo-Json -Depth 3 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -52,6 +53,10 @@ function Initialize-ClipDeckSettings {
             $settings | Add-Member -NotePropertyName idleShutdownHours -NotePropertyValue 2
             $changed = $true
         }
+        if ($null -eq $settings.PSObject.Properties['screenshotSaveEnabled']) {
+            $settings | Add-Member -NotePropertyName screenshotSaveEnabled -NotePropertyValue $false
+            $changed = $true
+        }
         if ($changed) {
             $settings |
                 ConvertTo-Json -Depth 3 |
@@ -61,6 +66,7 @@ function Initialize-ClipDeckSettings {
         @{
             idleShutdownEnabled = $false
             idleShutdownHours = 2
+            screenshotSaveEnabled = $false
         } |
             ConvertTo-Json -Depth 3 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8

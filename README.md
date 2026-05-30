@@ -21,6 +21,7 @@ Run it once. ClipDeck configures Ditto, starts the hotkey watchdog, creates a de
 | `Ctrl+2` | Paste the second saved clipboard-history item |
 | `Ctrl+3` | Paste the third saved clipboard-history item |
 | `Ctrl+B` | Paste the second saved clipboard-history item |
+| `Win+Shift+D` | Select a screen region and save it as a desktop PNG, when enabled |
 
 `Ctrl+B` overrides the usual Bold shortcut while ClipDeck is running.
 
@@ -30,6 +31,8 @@ Run it once. ClipDeck configures Ditto, starts the hotkey watchdog, creates a de
 - `Ctrl+1`, `Ctrl+2`, and `Ctrl+3` for fast clipboard insertion.
 - Optional idle shutdown guard: after 10 minutes without cursor movement, ClipDeck can start a shutdown countdown.
 - Shutdown countdown duration is configurable from 1 to 5 hours.
+- Optional desktop screenshot hotkey: `Win+Shift+D` lets you select a screen region and saves it as a PNG on the desktop without using the clipboard.
+- `Delete shot` removes the newest `ClipDeck Screenshot *.png` from the desktop after confirmation.
 - Current-user install; no admin rights required for ClipDeck itself.
 - A desktop shortcut and Start Menu shortcut named `ClipDeck`.
 - Autostart through both a current-user Run entry and a scheduled task.

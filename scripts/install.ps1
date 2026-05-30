@@ -59,6 +59,7 @@ if (-not (Test-Path -LiteralPath $settingsPath)) {
     @{
         idleShutdownEnabled = $false
         idleShutdownHours = 2
+        screenshotSaveEnabled = $false
     } |
         ConvertTo-Json -Depth 3 |
         Set-Content -LiteralPath $settingsPath -Encoding UTF8

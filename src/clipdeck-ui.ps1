@@ -16,6 +16,7 @@ function Initialize-ClipDeckSettings {
         @{
             idleShutdownEnabled = $false
             idleShutdownHours = 2
+            screenshotSaveEnabled = $false
         } |
             ConvertTo-Json -Depth 3 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -33,6 +34,10 @@ function Initialize-ClipDeckSettings {
             $settings | Add-Member -NotePropertyName idleShutdownHours -NotePropertyValue 2
             $changed = $true
         }
+        if ($null -eq $settings.PSObject.Properties['screenshotSaveEnabled']) {
+            $settings | Add-Member -NotePropertyName screenshotSaveEnabled -NotePropertyValue $false
+            $changed = $true
+        }
         if ($changed) {
             $settings |
                 ConvertTo-Json -Depth 3 |
@@ -42,6 +47,7 @@ function Initialize-ClipDeckSettings {
         @{
             idleShutdownEnabled = $false
             idleShutdownHours = 2
+            screenshotSaveEnabled = $false
         } |
             ConvertTo-Json -Depth 3 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -56,6 +62,7 @@ function Get-ClipDeckSettings {
         return [pscustomobject]@{
             idleShutdownEnabled = $false
             idleShutdownHours = 2
+            screenshotSaveEnabled = $false
         }
     }
 }
@@ -63,13 +70,15 @@ function Get-ClipDeckSettings {
 function Save-ClipDeckSettings {
     param(
         [bool]$IdleShutdownEnabled,
-        [int]$IdleShutdownHours
+        [int]$IdleShutdownHours,
+        [bool]$ScreenshotSaveEnabled
     )
     if ($IdleShutdownHours -lt 1) { $IdleShutdownHours = 1 }
     if ($IdleShutdownHours -gt 5) { $IdleShutdownHours = 5 }
     @{
         idleShutdownEnabled = $IdleShutdownEnabled
         idleShutdownHours = $IdleShutdownHours
+        screenshotSaveEnabled = $ScreenshotSaveEnabled
     } |
         ConvertTo-Json -Depth 3 |
         Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -90,7 +99,7 @@ function Get-IdleShutdownHours {
 
 function Set-IdleShutdownEnabled {
     param([bool]$Enabled)
-    Save-ClipDeckSettings -IdleShutdownEnabled $Enabled -IdleShutdownHours (Get-IdleShutdownHours)
+    Save-ClipDeckSettings -IdleShutdownEnabled $Enabled -IdleShutdownHours (Get-IdleShutdownHours) -ScreenshotSaveEnabled (Get-ScreenshotSaveEnabled)
 
     if (-not $Enabled) {
         shutdown.exe /a | Out-Null
@@ -99,7 +108,17 @@ function Set-IdleShutdownEnabled {
 
 function Set-IdleShutdownHours {
     param([int]$Hours)
-    Save-ClipDeckSettings -IdleShutdownEnabled (Get-IdleShutdownEnabled) -IdleShutdownHours $Hours
+    Save-ClipDeckSettings -IdleShutdownEnabled (Get-IdleShutdownEnabled) -IdleShutdownHours $Hours -ScreenshotSaveEnabled (Get-ScreenshotSaveEnabled)
+}
+
+function Get-ScreenshotSaveEnabled {
+    $settings = Get-ClipDeckSettings
+    return [bool]$settings.screenshotSaveEnabled
+}
+
+function Set-ScreenshotSaveEnabled {
+    param([bool]$Enabled)
+    Save-ClipDeckSettings -IdleShutdownEnabled (Get-IdleShutdownEnabled) -IdleShutdownHours (Get-IdleShutdownHours) -ScreenshotSaveEnabled $Enabled
 }
 
 function Get-ProcessByCommandLine {
@@ -157,6 +176,30 @@ function Get-LastLogLine {
 
 function Cancel-ClipDeckShutdown {
     shutdown.exe /a | Out-Null
+}
+
+function Remove-LatestClipDeckScreenshot {
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    $latest = Get-ChildItem -LiteralPath $desktop -Filter 'ClipDeck Screenshot *.png' -File -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+
+    if (-not $latest) {
+        [System.Windows.Forms.MessageBox]::Show('No ClipDeck screenshots found on the desktop.', 'ClipDeck', 'OK', 'Information') | Out-Null
+        return
+    }
+
+    $answer = [System.Windows.Forms.MessageBox]::Show(
+        ('Delete latest ClipDeck screenshot?' + [Environment]::NewLine + $latest.Name),
+        'ClipDeck',
+        'YesNo',
+        'Warning'
+    )
+    if ($answer -ne [System.Windows.Forms.DialogResult]::Yes) {
+        return
+    }
+
+    Remove-Item -LiteralPath $latest.FullName -Force
 }
 
 Start-ClipDeckWatchdog
@@ -263,6 +306,21 @@ $hoursLabel.Location = New-Object System.Drawing.Point(363, 54)
 $hoursLabel.Size = New-Object System.Drawing.Size(48, 18)
 $form.Controls.Add($hoursLabel)
 
+$screenshotLabel = New-Object System.Windows.Forms.Label
+$screenshotLabel.Text = 'Shot save'
+$screenshotLabel.ForeColor = $muted
+$screenshotLabel.Location = New-Object System.Drawing.Point(298, 76)
+$screenshotLabel.Size = New-Object System.Drawing.Size(72, 18)
+$form.Controls.Add($screenshotLabel)
+
+$screenshotCheckbox = New-Object System.Windows.Forms.CheckBox
+$screenshotCheckbox.Text = ''
+$screenshotCheckbox.BackColor = $bg
+$screenshotCheckbox.Location = New-Object System.Drawing.Point(379, 76)
+$screenshotCheckbox.Size = New-Object System.Drawing.Size(18, 18)
+$screenshotCheckbox.Checked = Get-ScreenshotSaveEnabled
+$form.Controls.Add($screenshotCheckbox)
+
 $hotkeysBox = New-Card -Left 24 -Top 96 -Width 382 -Height 174
 $hotkeysHeader = New-Object System.Windows.Forms.Label
 $hotkeysHeader.Text = 'HOTKEY PASTE'
@@ -356,10 +414,10 @@ $idleHint.Size = New-Object System.Drawing.Size(345, 18)
 $idleHintBox.Controls.Add($idleHint)
 
 function New-Button {
-    param([string]$CaptionText, [int]$Left, [System.Drawing.Color]$Color)
+    param([string]$CaptionText, [int]$Left, [System.Drawing.Color]$Color, [int]$Width = 116)
     $button = New-Object System.Windows.Forms.Panel
     $button.BackColor = [System.Drawing.Color]::FromArgb(13, 20, 34)
-    $button.Size = New-Object System.Drawing.Size(116, 34)
+    $button.Size = New-Object System.Drawing.Size($Width, 34)
     $button.Location = New-Object System.Drawing.Point($Left, 404)
     $button.Cursor = 'Hand'
 
@@ -390,9 +448,10 @@ function Register-ButtonClick {
     }
 }
 
-$restartButton = New-Button -CaptionText 'Restart' -Left 24 -Color $blue
-$cancelButton = New-Button -CaptionText 'Cancel timer' -Left 157 -Color $yellow
-$closeButton = New-Button -CaptionText 'Close' -Left 290 -Color $line
+$restartButton = New-Button -CaptionText 'Restart' -Left 24 -Color $blue -Width 86
+$deleteShotButton = New-Button -CaptionText 'Delete shot' -Left 122 -Color $pink -Width 86
+$cancelButton = New-Button -CaptionText 'Cancel timer' -Left 220 -Color $yellow -Width 86
+$closeButton = New-Button -CaptionText 'Close' -Left 318 -Color $line -Width 88
 
 Register-ButtonClick -Button $restartButton -Handler {
     Restart-ClipDeckWatchdog
@@ -405,6 +464,10 @@ Register-ButtonClick -Button $cancelButton -Handler {
     [System.Windows.Forms.MessageBox]::Show('Scheduled shutdown cancelled.', 'ClipDeck', 'OK', 'Information') | Out-Null
 }
 
+Register-ButtonClick -Button $deleteShotButton -Handler {
+    Remove-LatestClipDeckScreenshot
+}
+
 Register-ButtonClick -Button $closeButton -Handler {
     $form.Close()
 }
@@ -415,6 +478,10 @@ $idleCheckbox.Add_CheckedChanged({
 
 $hoursBox.Add_ValueChanged({
     Set-IdleShutdownHours -Hours ([int]$hoursBox.Value)
+})
+
+$screenshotCheckbox.Add_CheckedChanged({
+    Set-ScreenshotSaveEnabled -Enabled $screenshotCheckbox.Checked
 })
 
 function Set-StateText {
@@ -448,7 +515,10 @@ function Update-Status {
     if ([int]$hoursBox.Value -ne $settingsHours) {
         $hoursBox.Value = $settingsHours
     }
-    $idleHint.Text = ('Idle: 10m no cursor -> shutdown timer {0}h.' -f $settingsHours)
+    if ($screenshotCheckbox.Checked -ne [bool]$settings.screenshotSaveEnabled) {
+        $screenshotCheckbox.Checked = [bool]$settings.screenshotSaveEnabled
+    }
+    $idleHint.Text = ('Idle: 10m -> shutdown {0}h. Region shot: Win+Shift+D.' -f $settingsHours)
 
     $form.Text = 'ClipDeck'
 }
