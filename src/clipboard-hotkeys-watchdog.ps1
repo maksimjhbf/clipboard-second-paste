@@ -50,6 +50,8 @@ function Initialize-ClipDeckSettings {
             recordingFormat = 'MP4'
             recordingFps = 24
             recordingCaptureCursor = $true
+            androidMirrorEnabled = $false
+            androidMirrorRoot = ''
         } |
             ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -94,6 +96,8 @@ function Initialize-ClipDeckSettings {
             recordingFormat = 'MP4'
             recordingFps = 24
             recordingCaptureCursor = $true
+            androidMirrorEnabled = $false
+            androidMirrorRoot = ''
         }
         foreach ($name in $defaults.Keys) {
             if ($null -eq $settings.PSObject.Properties[$name]) {
@@ -124,6 +128,8 @@ function Initialize-ClipDeckSettings {
             recordingFormat = 'MP4'
             recordingFps = 24
             recordingCaptureCursor = $true
+            androidMirrorEnabled = $false
+            androidMirrorRoot = ''
         } |
             ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8

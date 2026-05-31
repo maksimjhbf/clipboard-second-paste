@@ -31,6 +31,8 @@ function Initialize-ClipDeckSettings {
             recordingFormat = 'MP4'
             recordingFps = 24
             recordingCaptureCursor = $true
+            androidMirrorEnabled = $false
+            androidMirrorRoot = ''
         } |
             ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -75,6 +77,8 @@ function Initialize-ClipDeckSettings {
             recordingFormat = 'MP4'
             recordingFps = 24
             recordingCaptureCursor = $true
+            androidMirrorEnabled = $false
+            androidMirrorRoot = ''
         }
         foreach ($name in $defaults.Keys) {
             if ($null -eq $settings.PSObject.Properties[$name]) {
@@ -105,6 +109,8 @@ function Initialize-ClipDeckSettings {
             recordingFormat = 'MP4'
             recordingFps = 24
             recordingCaptureCursor = $true
+            androidMirrorEnabled = $false
+            androidMirrorRoot = ''
         } |
             ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -133,6 +139,8 @@ function Get-ClipDeckSettings {
             recordingFormat = 'MP4'
             recordingFps = 24
             recordingCaptureCursor = $true
+            androidMirrorEnabled = $false
+            androidMirrorRoot = ''
         }
     }
 }
@@ -154,7 +162,9 @@ function Save-ClipDeckSettings {
         [string]$RulerHotkey = (Get-RulerHotkey),
         [string]$RecordingFormat = (Get-RecordingFormat),
         [int]$RecordingFps = (Get-RecordingFps),
-        [bool]$RecordingCaptureCursor = (Get-RecordingCaptureCursor)
+        [bool]$RecordingCaptureCursor = (Get-RecordingCaptureCursor),
+        [bool]$AndroidMirrorEnabled = (Get-AndroidMirrorEnabled),
+        [string]$AndroidMirrorRoot = (Get-AndroidMirrorRoot)
     )
     if ($IdleShutdownHours -lt 1) { $IdleShutdownHours = 1 }
     if ($IdleShutdownHours -gt 5) { $IdleShutdownHours = 5 }
@@ -179,6 +189,8 @@ function Save-ClipDeckSettings {
         recordingFormat = $RecordingFormat
         recordingFps = $RecordingFps
         recordingCaptureCursor = $RecordingCaptureCursor
+        androidMirrorEnabled = $AndroidMirrorEnabled
+        androidMirrorRoot = $AndroidMirrorRoot
     } |
         ConvertTo-Json -Depth 5 |
         Set-Content -LiteralPath $settingsPath -Encoding UTF8
@@ -304,6 +316,17 @@ function Get-RecordingCaptureCursor {
     return [bool]$settings.recordingCaptureCursor
 }
 
+function Get-AndroidMirrorEnabled {
+    $settings = Get-ClipDeckSettings
+    return [bool]$settings.androidMirrorEnabled
+}
+
+function Get-AndroidMirrorRoot {
+    $settings = Get-ClipDeckSettings
+    if ([string]::IsNullOrWhiteSpace($settings.androidMirrorRoot)) { return '' }
+    return [string]$settings.androidMirrorRoot
+}
+
 function Set-StorageRoot {
     param([string]$Path)
     if ([string]::IsNullOrWhiteSpace($Path)) { return }
@@ -324,6 +347,16 @@ function Set-RecordingOptions {
         -RecordingFormat $Format `
         -RecordingFps $Fps `
         -RecordingCaptureCursor $CaptureCursor
+}
+
+function Set-AndroidMirror {
+    param([bool]$Enabled, [string]$Path)
+    Save-ClipDeckSettings `
+        -IdleShutdownEnabled (Get-IdleShutdownEnabled) `
+        -IdleShutdownHours (Get-IdleShutdownHours) `
+        -ScreenshotSaveEnabled (Get-ScreenshotSaveEnabled) `
+        -AndroidMirrorEnabled $Enabled `
+        -AndroidMirrorRoot $Path
 }
 
 function Set-PasteHotkey {
@@ -460,6 +493,14 @@ function Initialize-StorageFolders {
         $path = if ([string]::IsNullOrWhiteSpace($name)) { $rootPath } else { Join-Path $rootPath $name }
         New-Item -ItemType Directory -Force -Path $path | Out-Null
     }
+
+    $androidRoot = Get-AndroidMirrorRoot
+    if ((Get-AndroidMirrorEnabled) -and -not [string]::IsNullOrWhiteSpace($androidRoot)) {
+        foreach ($name in @('', 'Screenshots', 'Recordings', 'OCR')) {
+            $path = if ([string]::IsNullOrWhiteSpace($name)) { $androidRoot } else { Join-Path $androidRoot $name }
+            New-Item -ItemType Directory -Force -Path $path | Out-Null
+        }
+    }
 }
 
 function Invoke-StorageCleanup {
@@ -513,7 +554,10 @@ $text = [System.Drawing.Color]::FromArgb(249, 250, 252)
 $muted = [System.Drawing.Color]::FromArgb(151, 164, 187)
 $green = [System.Drawing.Color]::FromArgb(52, 211, 153)
 $pink = [System.Drawing.Color]::FromArgb(255, 78, 146)
+$red = [System.Drawing.Color]::FromArgb(248, 113, 113)
+$orange = [System.Drawing.Color]::FromArgb(251, 146, 60)
 $blue = [System.Drawing.Color]::FromArgb(56, 189, 248)
+$cyan = [System.Drawing.Color]::FromArgb(34, 211, 238)
 $yellow = [System.Drawing.Color]::FromArgb(250, 204, 21)
 $purple = [System.Drawing.Color]::FromArgb(129, 140, 248)
 $neonPurple = [System.Drawing.Color]::FromArgb(202, 107, 255)
@@ -523,9 +567,9 @@ $neonPurpleFaint = [System.Drawing.Color]::FromArgb(62, 202, 107, 255)
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'ClipDeck'
 $form.StartPosition = 'CenterScreen'
-$form.ClientSize = New-Object System.Drawing.Size(468, 848)
-$form.MinimumSize = New-Object System.Drawing.Size(484, 887)
-$form.MaximumSize = New-Object System.Drawing.Size(484, 887)
+$form.ClientSize = New-Object System.Drawing.Size(468, 958)
+$form.MinimumSize = New-Object System.Drawing.Size(484, 997)
+$form.MaximumSize = New-Object System.Drawing.Size(484, 997)
 $form.FormBorderStyle = 'FixedSingle'
 $form.MaximizeBox = $false
 $form.BackColor = $bg
@@ -595,13 +639,28 @@ function New-Text {
 }
 
 function New-Card {
-    param([int]$Left, [int]$Top, [int]$Width, [int]$Height, [System.Drawing.Color]$Back = $surface)
+    param(
+        [int]$Left,
+        [int]$Top,
+        [int]$Width,
+        [int]$Height,
+        [System.Drawing.Color]$Back = $surface,
+        [System.Drawing.Color]$Accent = $neonPurpleFaint
+    )
     $card = New-Object System.Windows.Forms.Panel
     $card.BackColor = $Back
     $card.Location = New-Object System.Drawing.Point($Left, $Top)
     $card.Size = New-Object System.Drawing.Size($Width, $Height)
-    Add-RoundedBorder -Control $card -Radius 16 -BorderColor $neonPurpleFaint
+    Add-RoundedBorder -Control $card -Radius 16 -BorderColor $Accent
     $form.Controls.Add($card)
+
+    $accentStrip = New-Object System.Windows.Forms.Panel
+    $accentStrip.BackColor = $Accent
+    $accentStrip.Location = New-Object System.Drawing.Point(0, 16)
+    $accentStrip.Size = New-Object System.Drawing.Size(4, ($Height - 32))
+    Add-RoundedBorder -Control $accentStrip -Radius 3 -BorderColor $Accent
+    $card.Controls.Add($accentStrip)
+
     return $card
 }
 
@@ -742,10 +801,10 @@ $screenshotToggle = New-Toggle -Left 386 -Top 19 -Checked (Get-ScreenshotSaveEna
     Set-ScreenshotSaveEnabled -Enabled $Enabled
 }
 
-$hotkeysBox = New-Card -Left 24 -Top 68 -Width 420 -Height 188
+$hotkeysBox = New-Card -Left 24 -Top 68 -Width 420 -Height 188 -Accent $red
 $hotkeysHeader = New-Object System.Windows.Forms.Label
 $hotkeysHeader.Text = 'HOTKEY PASTE'
-$hotkeysHeader.ForeColor = $muted
+$hotkeysHeader.ForeColor = $red
 $hotkeysHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
 $hotkeysHeader.Location = New-Object System.Drawing.Point(20, 16)
 $hotkeysHeader.Size = New-Object System.Drawing.Size(140, 18)
@@ -980,10 +1039,10 @@ $currentHotkeyLabel.Add_Click({ Change-PasteHotkey -Slot 'current' -KeyLabel $cu
 $secondHotkeyLabel.Add_Click({ Change-PasteHotkey -Slot 'second' -KeyLabel $secondHotkeyLabel })
 $thirdHotkeyLabel.Add_Click({ Change-PasteHotkey -Slot 'third' -KeyLabel $thirdHotkeyLabel })
 
-$storageBox = New-Card -Left 24 -Top 272 -Width 420 -Height 126
+$storageBox = New-Card -Left 24 -Top 272 -Width 420 -Height 126 -Accent $orange
 $storageHeader = New-Object System.Windows.Forms.Label
 $storageHeader.Text = 'CAPTURE STORAGE'
-$storageHeader.ForeColor = $muted
+$storageHeader.ForeColor = $orange
 $storageHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
 $storageHeader.Location = New-Object System.Drawing.Point(20, 14)
 $storageHeader.Size = New-Object System.Drawing.Size(160, 16)
@@ -1058,10 +1117,60 @@ New-InnerButton -Parent $storageBox -Caption '+' -Left 288 -Top 82 -Width 32 -Ha
 } | Out-Null
 New-InnerButton -Parent $storageBox -Caption 'Last' -Left 346 -Top 82 -Width 52 -Handler { Open-LastCapture } | Out-Null
 
-$captureBox = New-Card -Left 24 -Top 414 -Width 420 -Height 198
+$androidBox = New-Card -Left 24 -Top 414 -Width 420 -Height 94 -Accent $yellow
+$androidHeader = New-Object System.Windows.Forms.Label
+$androidHeader.Text = 'ANDROID MIRROR'
+$androidHeader.ForeColor = $yellow
+$androidHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
+$androidHeader.Location = New-Object System.Drawing.Point(20, 14)
+$androidHeader.Size = New-Object System.Drawing.Size(160, 16)
+$androidBox.Controls.Add($androidHeader)
+
+$androidPathLabel = New-Object System.Windows.Forms.Label
+$androidPathLabel.Text = if ([string]::IsNullOrWhiteSpace((Get-AndroidMirrorRoot))) { 'Choose Android/sync folder' } else { Get-AndroidMirrorRoot }
+$androidPathLabel.ForeColor = $text
+$androidPathLabel.BackColor = $surface2
+$androidPathLabel.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+$androidPathLabel.Location = New-Object System.Drawing.Point(20, 48)
+$androidPathLabel.Size = New-Object System.Drawing.Size(196, 28)
+$androidPathLabel.TextAlign = 'MiddleLeft'
+Add-RoundedBorder -Control $androidPathLabel -Radius 9 -BorderColor $neonPurpleFaint
+$androidBox.Controls.Add($androidPathLabel)
+
+$androidMirrorLabel = New-Object System.Windows.Forms.Label
+$androidMirrorLabel.Text = 'mirror'
+$androidMirrorLabel.ForeColor = $muted
+$androidMirrorLabel.Location = New-Object System.Drawing.Point(224, 52)
+$androidMirrorLabel.Size = New-Object System.Drawing.Size(46, 20)
+$androidBox.Controls.Add($androidMirrorLabel)
+
+$androidToggle = New-Toggle -Left 0 -Top 0 -Checked (Get-AndroidMirrorEnabled) -OnChanged {
+    param([bool]$Enabled)
+    Set-AndroidMirror -Enabled $Enabled -Path (Get-AndroidMirrorRoot)
+    Initialize-StorageFolders
+    Update-Status
+}
+$androidToggle.Parent = $androidBox
+$androidToggle.Location = New-Object System.Drawing.Point(272, 48)
+
+New-InnerButton -Parent $androidBox -Caption 'Browse' -Left 330 -Top 48 -Width 56 -Handler {
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = 'Choose Android mirror folder'
+    if (-not [string]::IsNullOrWhiteSpace((Get-AndroidMirrorRoot))) {
+        $dialog.SelectedPath = Get-AndroidMirrorRoot
+    }
+    if ($dialog.ShowDialog($form) -eq [System.Windows.Forms.DialogResult]::OK) {
+        Set-AndroidMirror -Enabled (Get-AndroidMirrorEnabled) -Path $dialog.SelectedPath
+        Initialize-StorageFolders
+        $androidPathLabel.Text = Get-AndroidMirrorRoot
+        Update-Status
+    }
+} | Out-Null
+
+$captureBox = New-Card -Left 24 -Top 524 -Width 420 -Height 198 -Accent $cyan
 $captureHeader = New-Object System.Windows.Forms.Label
 $captureHeader.Text = 'CAPTURE TOOLS'
-$captureHeader.ForeColor = $muted
+$captureHeader.ForeColor = $cyan
 $captureHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
 $captureHeader.Location = New-Object System.Drawing.Point(20, 14)
 $captureHeader.Size = New-Object System.Drawing.Size(160, 16)
@@ -1132,7 +1241,7 @@ $cursorToggleLabel.Location = New-Object System.Drawing.Point(272, 132)
 $cursorToggleLabel.Size = New-Object System.Drawing.Size(96, 20)
 $captureBox.Controls.Add($cursorToggleLabel)
 
-$cursorToggle = New-Toggle -Left 382 -Top 532 -Checked (Get-RecordingCaptureCursor) -OnChanged {
+$cursorToggle = New-Toggle -Left 382 -Top 642 -Checked (Get-RecordingCaptureCursor) -OnChanged {
     param([bool]$Enabled)
     Set-RecordingOptions -Format (Get-RecordingFormat) -Fps (Get-RecordingFps) -CaptureCursor $Enabled
 }
@@ -1153,10 +1262,10 @@ $fpsBox.Add_SelectedIndexChanged({
     Set-RecordingOptions -Format (Get-RecordingFormat) -Fps ([int]$fpsBox.SelectedItem) -CaptureCursor (Get-RecordingCaptureCursor)
 })
 
-$statusBox = New-Card -Left 24 -Top 628 -Width 420 -Height 92
+$statusBox = New-Card -Left 24 -Top 738 -Width 420 -Height 92 -Accent $green
 $statusHeader = New-Object System.Windows.Forms.Label
 $statusHeader.Text = 'SYSTEM'
-$statusHeader.ForeColor = $muted
+$statusHeader.ForeColor = $green
 $statusHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
 $statusHeader.Location = New-Object System.Drawing.Point(20, 14)
 $statusHeader.Size = New-Object System.Drawing.Size(120, 16)
@@ -1198,7 +1307,7 @@ $watchdogValue = $watchdogStatus.Value
 $helperValue = $helperStatus.Value
 $dittoValue = $dittoStatus.Value
 
-$idleHintBox = New-Card -Left 24 -Top 736 -Width 420 -Height 36 -Back ([System.Drawing.Color]::FromArgb(14, 21, 34))
+$idleHintBox = New-Card -Left 24 -Top 846 -Width 420 -Height 36 -Back ([System.Drawing.Color]::FromArgb(14, 21, 34)) -Accent $purple
 $idleHint = New-Object System.Windows.Forms.Label
 $idleHint.ForeColor = $muted
 $idleHint.Location = New-Object System.Drawing.Point(20, 9)
@@ -1210,7 +1319,7 @@ function New-Button {
     $button = New-Object System.Windows.Forms.Panel
     $button.BackColor = [System.Drawing.Color]::FromArgb(16, 24, 38)
     $button.Size = New-Object System.Drawing.Size($Width, 42)
-    $button.Location = New-Object System.Drawing.Point($Left, 790)
+    $button.Location = New-Object System.Drawing.Point($Left, 900)
     $button.Cursor = 'Hand'
     Add-RoundedBorder -Control $button -Radius 14 -BorderColor $neonPurpleSoft
 
@@ -1305,6 +1414,10 @@ function Update-Status {
     $recordHotkeyLabel.Text = (Get-RecordHotkey).Replace('+', ' + ')
     $rulerHotkeyLabel.Text = (Get-RulerHotkey).Replace('+', ' + ')
     $storagePathLabel.Text = Get-StorageRoot
+    $androidPathLabel.Text = if ([string]::IsNullOrWhiteSpace((Get-AndroidMirrorRoot))) { 'Choose Android/sync folder' } else { Get-AndroidMirrorRoot }
+    if ((Get-ToggleChecked -Toggle $androidToggle) -ne (Get-AndroidMirrorEnabled)) {
+        Set-ToggleChecked -Toggle $androidToggle -Checked (Get-AndroidMirrorEnabled)
+    }
     $retentionValueLabel.Text = ('{0} days' -f (Get-RetentionDays))
     if ($formatBox.SelectedItem -ne (Get-RecordingFormat)) { $formatBox.SelectedItem = Get-RecordingFormat }
     if ($fpsBox.SelectedItem -ne [string](Get-RecordingFps)) { $fpsBox.SelectedItem = [string](Get-RecordingFps) }
@@ -1315,7 +1428,8 @@ function Update-Status {
     $ocrStatus = if (Test-ClipDeckTool -Name 'tesseract.exe') { 'ocr ok' } else { 'ocr missing dependency' }
     $dependencyLabel.Text = ($ffmpegStatus + ' | ' + $ocrStatus)
     $dependencyLabel.ForeColor = if ($ocrStatus -like '*missing*') { $yellow } else { $green }
-    $idleHint.Text = ('Idle {0}h | shot {1} | record {2} {3}fps | OCR {4}' -f $settingsHours, (Get-ScreenshotHotkey), (Get-RecordingFormat), (Get-RecordingFps), (Get-OcrHotkey))
+    $androidState = if ((Get-AndroidMirrorEnabled) -and -not [string]::IsNullOrWhiteSpace((Get-AndroidMirrorRoot))) { 'android mirror on' } else { 'android mirror off' }
+    $idleHint.Text = ('Idle {0}h | shot {1} | record {2} {3}fps | {4}' -f $settingsHours, (Get-ScreenshotHotkey), (Get-RecordingFormat), (Get-RecordingFps), $androidState)
 
     $form.Text = 'ClipDeck'
 }

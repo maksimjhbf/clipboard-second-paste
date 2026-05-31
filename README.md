@@ -2,7 +2,7 @@
 
 ClipDeck is a small Windows 10/11 utility for fast clipboard-history pasting and an optional idle shutdown guard.
 
-Version 2.0 adds the new ClipDeck UI, a desktop shortcut, watchdog-based autostart, `Ctrl+3` for pasting the third saved clipboard-history item, editable paste hotkeys, capture storage, region recording, offline `rus+eng` OCR, and a ruler overlay.
+Version 2.0 adds the new ClipDeck UI, a desktop shortcut, watchdog-based autostart, `Ctrl+3` for pasting the third saved clipboard-history item, editable paste hotkeys, capture storage, optional Android mirror storage, region recording, offline `rus+eng` OCR, and a ruler overlay.
 
 ## Download
 
@@ -37,6 +37,7 @@ Run it once. ClipDeck configures Ditto, starts the hotkey watchdog, creates a de
 - Optional desktop screenshot hotkey: `Win+Shift+D` lets you select a screen region and saves it as a PNG on the desktop without using the clipboard.
 - `Delete shot` removes the newest `ClipDeck Screenshot *.png` from the configured storage after confirmation.
 - Capture storage defaults to `Desktop\ClipDeck` with `Screenshots`, `Recordings`, and `OCR` subfolders.
+- Android mirror can duplicate new captures into a second chosen folder with the same subfolder layout.
 - Storage cleanup deletes files older than 7 days by default.
 - Region recording uses bundled `ffmpeg.exe`; default output is MP4 at 24 fps, with 30/60 fps and GIF available.
 - OCR uses bundled portable Tesseract 5 with `rus+eng` traineddata.

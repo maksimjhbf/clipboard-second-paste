@@ -511,10 +511,15 @@ public class ClipDeckRuntimeSettings
     public string RecordingFormat;
     public int RecordingFps;
     public bool RecordingCaptureCursor;
+    public bool AndroidMirrorEnabled;
+    public string AndroidMirrorRoot;
 
     public string ScreenshotsDir { get { return Path.Combine(StorageRoot, "Screenshots"); } }
     public string RecordingsDir { get { return Path.Combine(StorageRoot, "Recordings"); } }
     public string OcrDir { get { return Path.Combine(StorageRoot, "OCR"); } }
+    public string AndroidScreenshotsDir { get { return Path.Combine(AndroidMirrorRoot ?? "", "Screenshots"); } }
+    public string AndroidRecordingsDir { get { return Path.Combine(AndroidMirrorRoot ?? "", "Recordings"); } }
+    public string AndroidOcrDir { get { return Path.Combine(AndroidMirrorRoot ?? "", "OCR"); } }
 
     public static ClipDeckRuntimeSettings Load(string settingsPath)
     {
@@ -525,6 +530,8 @@ public class ClipDeckRuntimeSettings
         settings.RecordingFormat = "MP4";
         settings.RecordingFps = 24;
         settings.RecordingCaptureCursor = true;
+        settings.AndroidMirrorEnabled = false;
+        settings.AndroidMirrorRoot = "";
 
         try
         {
@@ -536,6 +543,8 @@ public class ClipDeckRuntimeSettings
                 settings.RecordingFormat = ReadJsonString(json, "recordingFormat", settings.RecordingFormat).ToUpperInvariant();
                 settings.RecordingFps = ReadJsonInt(json, "recordingFps", settings.RecordingFps);
                 settings.RecordingCaptureCursor = ReadJsonBool(json, "recordingCaptureCursor", settings.RecordingCaptureCursor);
+                settings.AndroidMirrorEnabled = ReadJsonBool(json, "androidMirrorEnabled", settings.AndroidMirrorEnabled);
+                settings.AndroidMirrorRoot = ReadJsonString(json, "androidMirrorRoot", settings.AndroidMirrorRoot);
             }
         }
         catch { }
@@ -545,6 +554,7 @@ public class ClipDeckRuntimeSettings
         if (settings.RetentionDays > 365) settings.RetentionDays = 365;
         if (settings.RecordingFormat != "MP4" && settings.RecordingFormat != "GIF") settings.RecordingFormat = "MP4";
         if (settings.RecordingFps != 24 && settings.RecordingFps != 30 && settings.RecordingFps != 60) settings.RecordingFps = 24;
+        if (String.IsNullOrWhiteSpace(settings.AndroidMirrorRoot)) settings.AndroidMirrorEnabled = false;
         return settings;
     }
 
@@ -554,6 +564,39 @@ public class ClipDeckRuntimeSettings
         Directory.CreateDirectory(ScreenshotsDir);
         Directory.CreateDirectory(RecordingsDir);
         Directory.CreateDirectory(OcrDir);
+        EnsureAndroidMirrorFolders();
+    }
+
+    public void EnsureAndroidMirrorFolders()
+    {
+        if (!AndroidMirrorEnabled || String.IsNullOrWhiteSpace(AndroidMirrorRoot)) return;
+        Directory.CreateDirectory(AndroidMirrorRoot);
+        Directory.CreateDirectory(AndroidScreenshotsDir);
+        Directory.CreateDirectory(AndroidRecordingsDir);
+        Directory.CreateDirectory(AndroidOcrDir);
+    }
+
+    public void MirrorCapture(string sourcePath, string kind, Action<string> log)
+    {
+        try
+        {
+            if (!AndroidMirrorEnabled || String.IsNullOrWhiteSpace(AndroidMirrorRoot)) return;
+            if (String.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath)) return;
+
+            string targetDir = AndroidMirrorRoot;
+            if (kind == "Screenshots") targetDir = AndroidScreenshotsDir;
+            else if (kind == "Recordings") targetDir = AndroidRecordingsDir;
+            else if (kind == "OCR") targetDir = AndroidOcrDir;
+
+            Directory.CreateDirectory(targetDir);
+            string targetPath = Path.Combine(targetDir, Path.GetFileName(sourcePath));
+            File.Copy(sourcePath, targetPath, true);
+            if (log != null) log("android mirror copied " + sourcePath + " -> " + targetPath);
+        }
+        catch (Exception ex)
+        {
+            if (log != null) log("android mirror failed: " + ex.Message);
+        }
     }
 
     public void CleanupOldFiles(Action<string> log)
@@ -753,6 +796,7 @@ public class RegionSelectionForm : Form
                 string path = CreateUniquePath(settings.ScreenshotsDir, "ClipDeck Screenshot ", ".png");
                 bitmap.Save(path, ImageFormat.Png);
                 Log("saved selected screenshot " + path);
+                settings.MirrorCapture(path, "Screenshots", Log);
                 WriteLastCapture(path);
             }
         }
@@ -775,6 +819,7 @@ public class RegionSelectionForm : Form
                 graphics.CopyFromScreen(screenRect.Left, screenRect.Top, 0, 0, screenRect.Size);
                 bitmap.Save(imagePath, ImageFormat.Png);
             }
+            settings.MirrorCapture(imagePath, "OCR", Log);
 
             string tesseract = FindTesseract();
             if (String.IsNullOrEmpty(tesseract))
@@ -1099,6 +1144,7 @@ public class RecordingControllerForm : Form
                 }
             }
             Log("recording finished output=" + outputPath);
+            settings.MirrorCapture(outputPath, "Recordings", Log);
         }
         catch (Exception ex)
         {
