@@ -31,6 +31,7 @@ function Write-WatchdogLog {
 }
 
 function Initialize-ClipDeckSettings {
+    $defaultStorageRoot = Join-Path ([Environment]::GetFolderPath('Desktop')) 'ClipDeck'
     if (-not (Test-Path -LiteralPath $settingsPath)) {
         @{
             idleShutdownEnabled = $false
@@ -39,8 +40,18 @@ function Initialize-ClipDeckSettings {
             pasteCurrentHotkey = 'Ctrl+1'
             pasteSecondHotkey = 'Ctrl+2'
             pasteThirdHotkey = 'Ctrl+3'
+            storageRoot = $defaultStorageRoot
+            retentionDays = 7
+            lastCleanupUtc = ''
+            screenshotHotkey = 'Win+Shift+D'
+            ocrHotkey = 'Win+Shift+Z'
+            recordHotkey = 'Win+Shift+R'
+            rulerHotkey = 'Alt+Shift+W'
+            recordingFormat = 'MP4'
+            recordingFps = 24
+            recordingCaptureCursor = $true
         } |
-            ConvertTo-Json -Depth 3 |
+            ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
         return
     }
@@ -72,9 +83,27 @@ function Initialize-ClipDeckSettings {
             $settings | Add-Member -NotePropertyName pasteThirdHotkey -NotePropertyValue 'Ctrl+3'
             $changed = $true
         }
+        $defaults = @{
+            storageRoot = $defaultStorageRoot
+            retentionDays = 7
+            lastCleanupUtc = ''
+            screenshotHotkey = 'Win+Shift+D'
+            ocrHotkey = 'Win+Shift+Z'
+            recordHotkey = 'Win+Shift+R'
+            rulerHotkey = 'Alt+Shift+W'
+            recordingFormat = 'MP4'
+            recordingFps = 24
+            recordingCaptureCursor = $true
+        }
+        foreach ($name in $defaults.Keys) {
+            if ($null -eq $settings.PSObject.Properties[$name]) {
+                $settings | Add-Member -NotePropertyName $name -NotePropertyValue $defaults[$name]
+                $changed = $true
+            }
+        }
         if ($changed) {
             $settings |
-                ConvertTo-Json -Depth 3 |
+                ConvertTo-Json -Depth 5 |
                 Set-Content -LiteralPath $settingsPath -Encoding UTF8
         }
     } catch {
@@ -85,8 +114,18 @@ function Initialize-ClipDeckSettings {
             pasteCurrentHotkey = 'Ctrl+1'
             pasteSecondHotkey = 'Ctrl+2'
             pasteThirdHotkey = 'Ctrl+3'
+            storageRoot = $defaultStorageRoot
+            retentionDays = 7
+            lastCleanupUtc = ''
+            screenshotHotkey = 'Win+Shift+D'
+            ocrHotkey = 'Win+Shift+Z'
+            recordHotkey = 'Win+Shift+R'
+            rulerHotkey = 'Alt+Shift+W'
+            recordingFormat = 'MP4'
+            recordingFps = 24
+            recordingCaptureCursor = $true
         } |
-            ConvertTo-Json -Depth 3 |
+            ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
     }
 }

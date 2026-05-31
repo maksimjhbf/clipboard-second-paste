@@ -2,7 +2,7 @@
 
 ClipDeck is a small Windows 10/11 utility for fast clipboard-history pasting and an optional idle shutdown guard.
 
-Version 2.0 adds the new ClipDeck UI, a desktop shortcut, watchdog-based autostart, `Ctrl+3` for pasting the third saved clipboard-history item, and editable paste hotkeys.
+Version 2.0 adds the new ClipDeck UI, a desktop shortcut, watchdog-based autostart, `Ctrl+3` for pasting the third saved clipboard-history item, editable paste hotkeys, capture storage, region recording, offline `rus+eng` OCR, and a ruler overlay.
 
 ## Download
 
@@ -21,7 +21,10 @@ Run it once. ClipDeck configures Ditto, starts the hotkey watchdog, creates a de
 | `Ctrl+2` | Paste the second saved clipboard-history item; editable in the ClipDeck UI |
 | `Ctrl+3` | Paste the third saved clipboard-history item; editable in the ClipDeck UI |
 | `Ctrl+B` | Paste the second saved clipboard-history item |
-| `Win+Shift+D` | Select a screen region and save it as a desktop PNG, when enabled |
+| `Win+Shift+D` | Select a screen region and save it as a PNG, when enabled |
+| `Win+Shift+Z` | Select a screen region and OCR `rus+eng` text to the clipboard |
+| `Win+Shift+R` | Preferred record-region shortcut; Windows may reserve it, so ClipDeck falls back to `Ctrl+Alt+R` |
+| `Alt+Shift+W` | Toggle the ruler overlay |
 
 `Ctrl+B` overrides the usual Bold shortcut while ClipDeck is running.
 
@@ -32,7 +35,12 @@ Run it once. ClipDeck configures Ditto, starts the hotkey watchdog, creates a de
 - Optional idle shutdown guard: after 10 minutes without cursor movement, ClipDeck can start a shutdown countdown.
 - Shutdown countdown duration is configurable from 1 to 5 hours.
 - Optional desktop screenshot hotkey: `Win+Shift+D` lets you select a screen region and saves it as a PNG on the desktop without using the clipboard.
-- `Delete shot` removes the newest `ClipDeck Screenshot *.png` from the desktop after confirmation.
+- `Delete shot` removes the newest `ClipDeck Screenshot *.png` from the configured storage after confirmation.
+- Capture storage defaults to `Desktop\ClipDeck` with `Screenshots`, `Recordings`, and `OCR` subfolders.
+- Storage cleanup deletes files older than 7 days by default.
+- Region recording uses bundled `ffmpeg.exe`; default output is MP4 at 24 fps, with 30/60 fps and GIF available.
+- OCR uses bundled portable Tesseract 5 with `rus+eng` traineddata.
+- `Alt+Shift+W` shows a compact translucent ruler overlay.
 - Current-user install; no admin rights required for ClipDeck itself.
 - A desktop shortcut and Start Menu shortcut named `ClipDeck`.
 - Autostart through both a current-user Run entry and a scheduled task.

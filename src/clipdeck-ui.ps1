@@ -12,6 +12,7 @@ $iconPath = Join-Path $root 'ClipDeck.ico'
 
 function Initialize-ClipDeckSettings {
     New-Item -ItemType Directory -Force -Path $root | Out-Null
+    $defaultStorageRoot = Join-Path ([Environment]::GetFolderPath('Desktop')) 'ClipDeck'
     if (-not (Test-Path -LiteralPath $settingsPath)) {
         @{
             idleShutdownEnabled = $false
@@ -20,8 +21,18 @@ function Initialize-ClipDeckSettings {
             pasteCurrentHotkey = 'Ctrl+1'
             pasteSecondHotkey = 'Ctrl+2'
             pasteThirdHotkey = 'Ctrl+3'
+            storageRoot = $defaultStorageRoot
+            retentionDays = 7
+            lastCleanupUtc = ''
+            screenshotHotkey = 'Win+Shift+D'
+            ocrHotkey = 'Win+Shift+Z'
+            recordHotkey = 'Win+Shift+R'
+            rulerHotkey = 'Alt+Shift+W'
+            recordingFormat = 'MP4'
+            recordingFps = 24
+            recordingCaptureCursor = $true
         } |
-            ConvertTo-Json -Depth 3 |
+            ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
         return
     }
@@ -53,9 +64,27 @@ function Initialize-ClipDeckSettings {
             $settings | Add-Member -NotePropertyName pasteThirdHotkey -NotePropertyValue 'Ctrl+3'
             $changed = $true
         }
+        $defaults = @{
+            storageRoot = $defaultStorageRoot
+            retentionDays = 7
+            lastCleanupUtc = ''
+            screenshotHotkey = 'Win+Shift+D'
+            ocrHotkey = 'Win+Shift+Z'
+            recordHotkey = 'Win+Shift+R'
+            rulerHotkey = 'Alt+Shift+W'
+            recordingFormat = 'MP4'
+            recordingFps = 24
+            recordingCaptureCursor = $true
+        }
+        foreach ($name in $defaults.Keys) {
+            if ($null -eq $settings.PSObject.Properties[$name]) {
+                $settings | Add-Member -NotePropertyName $name -NotePropertyValue $defaults[$name]
+                $changed = $true
+            }
+        }
         if ($changed) {
             $settings |
-                ConvertTo-Json -Depth 3 |
+                ConvertTo-Json -Depth 5 |
                 Set-Content -LiteralPath $settingsPath -Encoding UTF8
         }
     } catch {
@@ -66,8 +95,18 @@ function Initialize-ClipDeckSettings {
             pasteCurrentHotkey = 'Ctrl+1'
             pasteSecondHotkey = 'Ctrl+2'
             pasteThirdHotkey = 'Ctrl+3'
+            storageRoot = $defaultStorageRoot
+            retentionDays = 7
+            lastCleanupUtc = ''
+            screenshotHotkey = 'Win+Shift+D'
+            ocrHotkey = 'Win+Shift+Z'
+            recordHotkey = 'Win+Shift+R'
+            rulerHotkey = 'Alt+Shift+W'
+            recordingFormat = 'MP4'
+            recordingFps = 24
+            recordingCaptureCursor = $true
         } |
-            ConvertTo-Json -Depth 3 |
+            ConvertTo-Json -Depth 5 |
             Set-Content -LiteralPath $settingsPath -Encoding UTF8
     }
 }
@@ -84,6 +123,16 @@ function Get-ClipDeckSettings {
             pasteCurrentHotkey = 'Ctrl+1'
             pasteSecondHotkey = 'Ctrl+2'
             pasteThirdHotkey = 'Ctrl+3'
+            storageRoot = (Join-Path ([Environment]::GetFolderPath('Desktop')) 'ClipDeck')
+            retentionDays = 7
+            lastCleanupUtc = ''
+            screenshotHotkey = 'Win+Shift+D'
+            ocrHotkey = 'Win+Shift+Z'
+            recordHotkey = 'Win+Shift+R'
+            rulerHotkey = 'Alt+Shift+W'
+            recordingFormat = 'MP4'
+            recordingFps = 24
+            recordingCaptureCursor = $true
         }
     }
 }
@@ -95,10 +144,24 @@ function Save-ClipDeckSettings {
         [bool]$ScreenshotSaveEnabled,
         [string]$PasteCurrentHotkey = (Get-PasteCurrentHotkey),
         [string]$PasteSecondHotkey = (Get-PasteSecondHotkey),
-        [string]$PasteThirdHotkey = (Get-PasteThirdHotkey)
+        [string]$PasteThirdHotkey = (Get-PasteThirdHotkey),
+        [string]$StorageRoot = (Get-StorageRoot),
+        [int]$RetentionDays = (Get-RetentionDays),
+        [string]$LastCleanupUtc = (Get-LastCleanupUtc),
+        [string]$ScreenshotHotkey = (Get-ScreenshotHotkey),
+        [string]$OcrHotkey = (Get-OcrHotkey),
+        [string]$RecordHotkey = (Get-RecordHotkey),
+        [string]$RulerHotkey = (Get-RulerHotkey),
+        [string]$RecordingFormat = (Get-RecordingFormat),
+        [int]$RecordingFps = (Get-RecordingFps),
+        [bool]$RecordingCaptureCursor = (Get-RecordingCaptureCursor)
     )
     if ($IdleShutdownHours -lt 1) { $IdleShutdownHours = 1 }
     if ($IdleShutdownHours -gt 5) { $IdleShutdownHours = 5 }
+    if ($RetentionDays -lt 1) { $RetentionDays = 1 }
+    if ($RetentionDays -gt 365) { $RetentionDays = 365 }
+    if ($RecordingFps -notin @(24, 30, 60)) { $RecordingFps = 24 }
+    if ($RecordingFormat -notin @('MP4', 'GIF')) { $RecordingFormat = 'MP4' }
     @{
         idleShutdownEnabled = $IdleShutdownEnabled
         idleShutdownHours = $IdleShutdownHours
@@ -106,8 +169,18 @@ function Save-ClipDeckSettings {
         pasteCurrentHotkey = $PasteCurrentHotkey
         pasteSecondHotkey = $PasteSecondHotkey
         pasteThirdHotkey = $PasteThirdHotkey
+        storageRoot = $StorageRoot
+        retentionDays = $RetentionDays
+        lastCleanupUtc = $LastCleanupUtc
+        screenshotHotkey = $ScreenshotHotkey
+        ocrHotkey = $OcrHotkey
+        recordHotkey = $RecordHotkey
+        rulerHotkey = $RulerHotkey
+        recordingFormat = $RecordingFormat
+        recordingFps = $RecordingFps
+        recordingCaptureCursor = $RecordingCaptureCursor
     } |
-        ConvertTo-Json -Depth 3 |
+        ConvertTo-Json -Depth 5 |
         Set-Content -LiteralPath $settingsPath -Encoding UTF8
 }
 
@@ -166,6 +239,93 @@ function Get-PasteThirdHotkey {
     return [string]$settings.pasteThirdHotkey
 }
 
+function Get-StorageRoot {
+    $settings = Get-ClipDeckSettings
+    if ([string]::IsNullOrWhiteSpace($settings.storageRoot)) {
+        return (Join-Path ([Environment]::GetFolderPath('Desktop')) 'ClipDeck')
+    }
+    return [string]$settings.storageRoot
+}
+
+function Get-RetentionDays {
+    $settings = Get-ClipDeckSettings
+    $days = [int]$settings.retentionDays
+    if ($days -lt 1) { return 7 }
+    if ($days -gt 365) { return 365 }
+    return $days
+}
+
+function Get-LastCleanupUtc {
+    $settings = Get-ClipDeckSettings
+    if ([string]::IsNullOrWhiteSpace($settings.lastCleanupUtc)) { return '' }
+    return [string]$settings.lastCleanupUtc
+}
+
+function Get-ScreenshotHotkey {
+    $settings = Get-ClipDeckSettings
+    if ([string]::IsNullOrWhiteSpace($settings.screenshotHotkey)) { return 'Win+Shift+D' }
+    return [string]$settings.screenshotHotkey
+}
+
+function Get-OcrHotkey {
+    $settings = Get-ClipDeckSettings
+    if ([string]::IsNullOrWhiteSpace($settings.ocrHotkey)) { return 'Win+Shift+Z' }
+    return [string]$settings.ocrHotkey
+}
+
+function Get-RecordHotkey {
+    $settings = Get-ClipDeckSettings
+    if ([string]::IsNullOrWhiteSpace($settings.recordHotkey)) { return 'Win+Shift+R' }
+    return [string]$settings.recordHotkey
+}
+
+function Get-RulerHotkey {
+    $settings = Get-ClipDeckSettings
+    if ([string]::IsNullOrWhiteSpace($settings.rulerHotkey)) { return 'Alt+Shift+W' }
+    return [string]$settings.rulerHotkey
+}
+
+function Get-RecordingFormat {
+    $settings = Get-ClipDeckSettings
+    $format = ([string]$settings.recordingFormat).ToUpperInvariant()
+    if ($format -notin @('MP4', 'GIF')) { return 'MP4' }
+    return $format
+}
+
+function Get-RecordingFps {
+    $settings = Get-ClipDeckSettings
+    $fps = [int]$settings.recordingFps
+    if ($fps -notin @(24, 30, 60)) { return 24 }
+    return $fps
+}
+
+function Get-RecordingCaptureCursor {
+    $settings = Get-ClipDeckSettings
+    return [bool]$settings.recordingCaptureCursor
+}
+
+function Set-StorageRoot {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return }
+    Save-ClipDeckSettings -IdleShutdownEnabled (Get-IdleShutdownEnabled) -IdleShutdownHours (Get-IdleShutdownHours) -ScreenshotSaveEnabled (Get-ScreenshotSaveEnabled) -StorageRoot $Path
+}
+
+function Set-RetentionDays {
+    param([int]$Days)
+    Save-ClipDeckSettings -IdleShutdownEnabled (Get-IdleShutdownEnabled) -IdleShutdownHours (Get-IdleShutdownHours) -ScreenshotSaveEnabled (Get-ScreenshotSaveEnabled) -RetentionDays $Days
+}
+
+function Set-RecordingOptions {
+    param([string]$Format, [int]$Fps, [bool]$CaptureCursor)
+    Save-ClipDeckSettings `
+        -IdleShutdownEnabled (Get-IdleShutdownEnabled) `
+        -IdleShutdownHours (Get-IdleShutdownHours) `
+        -ScreenshotSaveEnabled (Get-ScreenshotSaveEnabled) `
+        -RecordingFormat $Format `
+        -RecordingFps $Fps `
+        -RecordingCaptureCursor $CaptureCursor
+}
+
 function Set-PasteHotkey {
     param(
         [ValidateSet('current', 'second', 'third')]
@@ -186,6 +346,31 @@ function Set-PasteHotkey {
         -PasteCurrentHotkey $current `
         -PasteSecondHotkey $second `
         -PasteThirdHotkey $third
+}
+
+function Set-CaptureHotkey {
+    param(
+        [ValidateSet('screenshot', 'ocr', 'record', 'ruler')]
+        [string]$Slot,
+        [string]$Hotkey
+    )
+    $screenshot = Get-ScreenshotHotkey
+    $ocr = Get-OcrHotkey
+    $record = Get-RecordHotkey
+    $ruler = Get-RulerHotkey
+    if ($Slot -eq 'screenshot') { $screenshot = $Hotkey }
+    if ($Slot -eq 'ocr') { $ocr = $Hotkey }
+    if ($Slot -eq 'record') { $record = $Hotkey }
+    if ($Slot -eq 'ruler') { $ruler = $Hotkey }
+
+    Save-ClipDeckSettings `
+        -IdleShutdownEnabled (Get-IdleShutdownEnabled) `
+        -IdleShutdownHours (Get-IdleShutdownHours) `
+        -ScreenshotSaveEnabled (Get-ScreenshotSaveEnabled) `
+        -ScreenshotHotkey $screenshot `
+        -OcrHotkey $ocr `
+        -RecordHotkey $record `
+        -RulerHotkey $ruler
 }
 
 function Get-ProcessByCommandLine {
@@ -246,8 +431,8 @@ function Cancel-ClipDeckShutdown {
 }
 
 function Remove-LatestClipDeckScreenshot {
-    $desktop = [Environment]::GetFolderPath('Desktop')
-    $latest = Get-ChildItem -LiteralPath $desktop -Filter 'ClipDeck Screenshot *.png' -File -ErrorAction SilentlyContinue |
+    $screenshots = Join-Path (Get-StorageRoot) 'Screenshots'
+    $latest = Get-ChildItem -LiteralPath $screenshots -Filter 'ClipDeck Screenshot *.png' -File -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
 
@@ -269,7 +454,55 @@ function Remove-LatestClipDeckScreenshot {
     Remove-Item -LiteralPath $latest.FullName -Force
 }
 
+function Initialize-StorageFolders {
+    $rootPath = Get-StorageRoot
+    foreach ($name in @('', 'Screenshots', 'Recordings', 'OCR')) {
+        $path = if ([string]::IsNullOrWhiteSpace($name)) { $rootPath } else { Join-Path $rootPath $name }
+        New-Item -ItemType Directory -Force -Path $path | Out-Null
+    }
+}
+
+function Invoke-StorageCleanup {
+    Initialize-StorageFolders
+    $cutoff = (Get-Date).AddDays(-1 * (Get-RetentionDays))
+    foreach ($name in @('Screenshots', 'Recordings', 'OCR')) {
+        $path = Join-Path (Get-StorageRoot) $name
+        Get-ChildItem -LiteralPath $path -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -lt $cutoff } |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Get-LastCapturePath {
+    $path = Join-Path $root 'last-capture.txt'
+    if (-not (Test-Path -LiteralPath $path)) { return '' }
+    return (Get-Content -Raw -LiteralPath $path).Trim()
+}
+
+function Open-StorageRoot {
+    Initialize-StorageFolders
+    Start-Process -FilePath (Get-StorageRoot)
+}
+
+function Open-LastCapture {
+    $path = Get-LastCapturePath
+    if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path)) {
+        [System.Windows.Forms.MessageBox]::Show('No saved ClipDeck capture found yet.', 'ClipDeck', 'OK', 'Information') | Out-Null
+        return
+    }
+    Start-Process -FilePath $path
+}
+
+function Test-ClipDeckTool {
+    param([string]$Name)
+    $toolPath = Join-Path $root "tools\$Name"
+    if (Test-Path -LiteralPath $toolPath) { return $true }
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
 Start-ClipDeckWatchdog
+Initialize-StorageFolders
+Invoke-StorageCleanup
 
 $bg = [System.Drawing.Color]::FromArgb(9, 13, 23)
 $surface = [System.Drawing.Color]::FromArgb(18, 24, 37)
@@ -290,9 +523,9 @@ $neonPurpleFaint = [System.Drawing.Color]::FromArgb(62, 202, 107, 255)
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'ClipDeck'
 $form.StartPosition = 'CenterScreen'
-$form.ClientSize = New-Object System.Drawing.Size(468, 512)
-$form.MinimumSize = New-Object System.Drawing.Size(484, 551)
-$form.MaximumSize = New-Object System.Drawing.Size(484, 551)
+$form.ClientSize = New-Object System.Drawing.Size(468, 848)
+$form.MinimumSize = New-Object System.Drawing.Size(484, 887)
+$form.MaximumSize = New-Object System.Drawing.Size(484, 887)
 $form.FormBorderStyle = 'FixedSingle'
 $form.MaximizeBox = $false
 $form.BackColor = $bg
@@ -653,17 +886,54 @@ function Test-HotkeyDuplicate {
     return $false
 }
 
+function Test-AnyHotkeyDuplicate {
+    param([string]$Slot, [string]$Hotkey)
+    $target = $Hotkey.ToLowerInvariant()
+    $pairs = @{
+        current = (Get-PasteCurrentHotkey)
+        second = (Get-PasteSecondHotkey)
+        third = (Get-PasteThirdHotkey)
+        screenshot = (Get-ScreenshotHotkey)
+        ocr = (Get-OcrHotkey)
+        record = (Get-RecordHotkey)
+        ruler = (Get-RulerHotkey)
+    }
+    foreach ($key in $pairs.Keys) {
+        if ($key -ne $Slot -and $pairs[$key].ToLowerInvariant() -eq $target) {
+            return $true
+        }
+    }
+    return $false
+}
+
 function Change-PasteHotkey {
     param([string]$Slot, $KeyLabel)
     $newHotkey = Show-HotkeyCaptureDialog -CurrentHotkey $KeyLabel.Text
     if ([string]::IsNullOrWhiteSpace($newHotkey)) {
         return
     }
-    if (Test-HotkeyDuplicate -Slot $Slot -Hotkey $newHotkey) {
+    if (Test-AnyHotkeyDuplicate -Slot $Slot -Hotkey $newHotkey) {
         [System.Windows.Forms.MessageBox]::Show('This shortcut is already used by another ClipDeck paste action.', 'ClipDeck', 'OK', 'Warning') | Out-Null
         return
     }
     Set-PasteHotkey -Slot $Slot -Hotkey $newHotkey
+    $KeyLabel.Text = $newHotkey.Replace('+', ' + ')
+    Restart-ClipDeckWatchdog
+    Start-Sleep -Milliseconds 500
+    Update-Status
+}
+
+function Change-CaptureHotkey {
+    param([string]$Slot, $KeyLabel)
+    $newHotkey = Show-HotkeyCaptureDialog -CurrentHotkey $KeyLabel.Text
+    if ([string]::IsNullOrWhiteSpace($newHotkey)) {
+        return
+    }
+    if (Test-AnyHotkeyDuplicate -Slot $Slot -Hotkey $newHotkey) {
+        [System.Windows.Forms.MessageBox]::Show('This shortcut is already used by another ClipDeck action.', 'ClipDeck', 'OK', 'Warning') | Out-Null
+        return
+    }
+    Set-CaptureHotkey -Slot $Slot -Hotkey $newHotkey
     $KeyLabel.Text = $newHotkey.Replace('+', ' + ')
     Restart-ClipDeckWatchdog
     Start-Sleep -Milliseconds 500
@@ -710,7 +980,180 @@ $currentHotkeyLabel.Add_Click({ Change-PasteHotkey -Slot 'current' -KeyLabel $cu
 $secondHotkeyLabel.Add_Click({ Change-PasteHotkey -Slot 'second' -KeyLabel $secondHotkeyLabel })
 $thirdHotkeyLabel.Add_Click({ Change-PasteHotkey -Slot 'third' -KeyLabel $thirdHotkeyLabel })
 
-$statusBox = New-Card -Left 24 -Top 272 -Width 420 -Height 92
+$storageBox = New-Card -Left 24 -Top 272 -Width 420 -Height 126
+$storageHeader = New-Object System.Windows.Forms.Label
+$storageHeader.Text = 'CAPTURE STORAGE'
+$storageHeader.ForeColor = $muted
+$storageHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
+$storageHeader.Location = New-Object System.Drawing.Point(20, 14)
+$storageHeader.Size = New-Object System.Drawing.Size(160, 16)
+$storageBox.Controls.Add($storageHeader)
+
+$storagePathLabel = New-Object System.Windows.Forms.Label
+$storagePathLabel.Text = Get-StorageRoot
+$storagePathLabel.ForeColor = $text
+$storagePathLabel.BackColor = $surface2
+$storagePathLabel.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+$storagePathLabel.Location = New-Object System.Drawing.Point(20, 42)
+$storagePathLabel.Size = New-Object System.Drawing.Size(250, 28)
+$storagePathLabel.TextAlign = 'MiddleLeft'
+Add-RoundedBorder -Control $storagePathLabel -Radius 9 -BorderColor $neonPurpleFaint
+$storageBox.Controls.Add($storagePathLabel)
+
+function New-InnerButton {
+    param($Parent, [string]$Caption, [int]$Left, [int]$Top, [int]$Width, [scriptblock]$Handler)
+    $button = New-Object System.Windows.Forms.Label
+    $button.Text = $Caption
+    $button.ForeColor = $text
+    $button.BackColor = $surface3
+    $button.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
+    $button.TextAlign = 'MiddleCenter'
+    $button.Location = New-Object System.Drawing.Point($Left, $Top)
+    $button.Size = New-Object System.Drawing.Size($Width, 28)
+    $button.Cursor = 'Hand'
+    Add-RoundedBorder -Control $button -Radius 9 -BorderColor $neonPurpleSoft
+    $button.Add_Click($Handler)
+    $Parent.Controls.Add($button)
+    return $button
+}
+
+New-InnerButton -Parent $storageBox -Caption 'Browse' -Left 282 -Top 42 -Width 56 -Handler {
+    $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dialog.Description = 'Choose ClipDeck capture storage folder'
+    $dialog.SelectedPath = Get-StorageRoot
+    if ($dialog.ShowDialog($form) -eq [System.Windows.Forms.DialogResult]::OK) {
+        Set-StorageRoot -Path $dialog.SelectedPath
+        Initialize-StorageFolders
+        $storagePathLabel.Text = Get-StorageRoot
+        Update-Status
+    }
+} | Out-Null
+
+New-InnerButton -Parent $storageBox -Caption 'Open' -Left 346 -Top 42 -Width 52 -Handler { Open-StorageRoot } | Out-Null
+
+$retentionLabel = New-Object System.Windows.Forms.Label
+$retentionLabel.Text = 'Delete old files after'
+$retentionLabel.ForeColor = $muted
+$retentionLabel.Location = New-Object System.Drawing.Point(20, 86)
+$retentionLabel.Size = New-Object System.Drawing.Size(136, 20)
+$storageBox.Controls.Add($retentionLabel)
+
+$retentionValueLabel = New-Object System.Windows.Forms.Label
+$retentionValueLabel.ForeColor = $text
+$retentionValueLabel.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 9)
+$retentionValueLabel.TextAlign = 'MiddleCenter'
+$retentionValueLabel.Location = New-Object System.Drawing.Point(170, 82)
+$retentionValueLabel.Size = New-Object System.Drawing.Size(70, 28)
+$retentionValueLabel.BackColor = $surface2
+Add-RoundedBorder -Control $retentionValueLabel -Radius 9 -BorderColor $neonPurpleSoft
+$storageBox.Controls.Add($retentionValueLabel)
+
+New-InnerButton -Parent $storageBox -Caption '-' -Left 250 -Top 82 -Width 32 -Handler {
+    Set-RetentionDays -Days ((Get-RetentionDays) - 1)
+    Update-Status
+} | Out-Null
+New-InnerButton -Parent $storageBox -Caption '+' -Left 288 -Top 82 -Width 32 -Handler {
+    Set-RetentionDays -Days ((Get-RetentionDays) + 1)
+    Update-Status
+} | Out-Null
+New-InnerButton -Parent $storageBox -Caption 'Last' -Left 346 -Top 82 -Width 52 -Handler { Open-LastCapture } | Out-Null
+
+$captureBox = New-Card -Left 24 -Top 414 -Width 420 -Height 198
+$captureHeader = New-Object System.Windows.Forms.Label
+$captureHeader.Text = 'CAPTURE TOOLS'
+$captureHeader.ForeColor = $muted
+$captureHeader.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
+$captureHeader.Location = New-Object System.Drawing.Point(20, 14)
+$captureHeader.Size = New-Object System.Drawing.Size(160, 16)
+$captureBox.Controls.Add($captureHeader)
+
+function New-CaptureHotkeyRow {
+    param([int]$Top, [string]$Slot, [string]$KeyText, [string]$CaptionText)
+    $key = New-Object System.Windows.Forms.Label
+    $key.Text = $KeyText.Replace('+', ' + ')
+    $key.ForeColor = $text
+    $key.BackColor = $surface3
+    $key.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
+    $key.TextAlign = 'MiddleCenter'
+    $key.Location = New-Object System.Drawing.Point(20, $Top)
+    $key.Size = New-Object System.Drawing.Size(118, 28)
+    $key.Cursor = 'Hand'
+    Add-RoundedBorder -Control $key -Radius 9 -BorderColor $neonPurpleSoft
+    $captureBox.Controls.Add($key)
+
+    $caption = New-Object System.Windows.Forms.Label
+    $caption.Text = $CaptionText
+    $caption.ForeColor = $text
+    $caption.Location = New-Object System.Drawing.Point(148, ($Top + 4))
+    $caption.Size = New-Object System.Drawing.Size(112, 20)
+    $captureBox.Controls.Add($caption)
+
+    $key.Add_Click({ Change-CaptureHotkey -Slot $Slot -KeyLabel $key }.GetNewClosure())
+    return $key
+}
+
+$screenshotHotkeyLabel = New-CaptureHotkeyRow -Top 42 -Slot 'screenshot' -KeyText (Get-ScreenshotHotkey) -CaptionText 'Region screenshot'
+$ocrHotkeyLabel = New-CaptureHotkeyRow -Top 78 -Slot 'ocr' -KeyText (Get-OcrHotkey) -CaptionText 'OCR ru+en to clipboard'
+$recordHotkeyLabel = New-CaptureHotkeyRow -Top 114 -Slot 'record' -KeyText (Get-RecordHotkey) -CaptionText 'Record selected area'
+
+$rulerHotkeyLabel = New-Object System.Windows.Forms.Label
+$rulerHotkeyLabel.Text = (Get-RulerHotkey).Replace('+', ' + ')
+$rulerHotkeyLabel.ForeColor = $text
+$rulerHotkeyLabel.BackColor = $surface3
+$rulerHotkeyLabel.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 8)
+$rulerHotkeyLabel.TextAlign = 'MiddleCenter'
+$rulerHotkeyLabel.Location = New-Object System.Drawing.Point(272, 42)
+$rulerHotkeyLabel.Size = New-Object System.Drawing.Size(126, 28)
+$rulerHotkeyLabel.Cursor = 'Hand'
+Add-RoundedBorder -Control $rulerHotkeyLabel -Radius 9 -BorderColor $neonPurpleSoft
+$captureBox.Controls.Add($rulerHotkeyLabel)
+$rulerHotkeyLabel.Add_Click({ Change-CaptureHotkey -Slot 'ruler' -KeyLabel $rulerHotkeyLabel })
+
+$formatBox = New-Object System.Windows.Forms.ComboBox
+$formatBox.DropDownStyle = 'DropDownList'
+$formatBox.Items.AddRange(@('MP4', 'GIF'))
+$formatBox.SelectedItem = Get-RecordingFormat
+$formatBox.Location = New-Object System.Drawing.Point(272, 86)
+$formatBox.Size = New-Object System.Drawing.Size(58, 24)
+$captureBox.Controls.Add($formatBox)
+
+$fpsBox = New-Object System.Windows.Forms.ComboBox
+$fpsBox.DropDownStyle = 'DropDownList'
+$fpsBox.Items.AddRange(@('24', '30', '60'))
+$fpsBox.SelectedItem = [string](Get-RecordingFps)
+$fpsBox.Location = New-Object System.Drawing.Point(340, 86)
+$fpsBox.Size = New-Object System.Drawing.Size(58, 24)
+$captureBox.Controls.Add($fpsBox)
+
+$cursorToggleLabel = New-Object System.Windows.Forms.Label
+$cursorToggleLabel.Text = 'capture cursor'
+$cursorToggleLabel.ForeColor = $muted
+$cursorToggleLabel.Location = New-Object System.Drawing.Point(272, 132)
+$cursorToggleLabel.Size = New-Object System.Drawing.Size(96, 20)
+$captureBox.Controls.Add($cursorToggleLabel)
+
+$cursorToggle = New-Toggle -Left 382 -Top 532 -Checked (Get-RecordingCaptureCursor) -OnChanged {
+    param([bool]$Enabled)
+    Set-RecordingOptions -Format (Get-RecordingFormat) -Fps (Get-RecordingFps) -CaptureCursor $Enabled
+}
+$cursorToggle.Parent = $captureBox
+$cursorToggle.Location = New-Object System.Drawing.Point(346, 126)
+
+$dependencyLabel = New-Object System.Windows.Forms.Label
+$dependencyLabel.ForeColor = $muted
+$dependencyLabel.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+$dependencyLabel.Location = New-Object System.Drawing.Point(20, 160)
+$dependencyLabel.Size = New-Object System.Drawing.Size(378, 20)
+$captureBox.Controls.Add($dependencyLabel)
+
+$formatBox.Add_SelectedIndexChanged({
+    Set-RecordingOptions -Format ([string]$formatBox.SelectedItem) -Fps (Get-RecordingFps) -CaptureCursor (Get-RecordingCaptureCursor)
+})
+$fpsBox.Add_SelectedIndexChanged({
+    Set-RecordingOptions -Format (Get-RecordingFormat) -Fps ([int]$fpsBox.SelectedItem) -CaptureCursor (Get-RecordingCaptureCursor)
+})
+
+$statusBox = New-Card -Left 24 -Top 628 -Width 420 -Height 92
 $statusHeader = New-Object System.Windows.Forms.Label
 $statusHeader.Text = 'SYSTEM'
 $statusHeader.ForeColor = $muted
@@ -755,7 +1198,7 @@ $watchdogValue = $watchdogStatus.Value
 $helperValue = $helperStatus.Value
 $dittoValue = $dittoStatus.Value
 
-$idleHintBox = New-Card -Left 24 -Top 380 -Width 420 -Height 36 -Back ([System.Drawing.Color]::FromArgb(14, 21, 34))
+$idleHintBox = New-Card -Left 24 -Top 736 -Width 420 -Height 36 -Back ([System.Drawing.Color]::FromArgb(14, 21, 34))
 $idleHint = New-Object System.Windows.Forms.Label
 $idleHint.ForeColor = $muted
 $idleHint.Location = New-Object System.Drawing.Point(20, 9)
@@ -767,7 +1210,7 @@ function New-Button {
     $button = New-Object System.Windows.Forms.Panel
     $button.BackColor = [System.Drawing.Color]::FromArgb(16, 24, 38)
     $button.Size = New-Object System.Drawing.Size($Width, 42)
-    $button.Location = New-Object System.Drawing.Point($Left, 436)
+    $button.Location = New-Object System.Drawing.Point($Left, 790)
     $button.Cursor = 'Hand'
     Add-RoundedBorder -Control $button -Radius 14 -BorderColor $neonPurpleSoft
 
@@ -857,7 +1300,22 @@ function Update-Status {
     $currentHotkeyLabel.Text = (Get-PasteCurrentHotkey).Replace('+', ' + ')
     $secondHotkeyLabel.Text = (Get-PasteSecondHotkey).Replace('+', ' + ')
     $thirdHotkeyLabel.Text = (Get-PasteThirdHotkey).Replace('+', ' + ')
-    $idleHint.Text = ('Idle: 10m -> shutdown {0}h. Region shot: Win+Shift+D.' -f $settingsHours)
+    $screenshotHotkeyLabel.Text = (Get-ScreenshotHotkey).Replace('+', ' + ')
+    $ocrHotkeyLabel.Text = (Get-OcrHotkey).Replace('+', ' + ')
+    $recordHotkeyLabel.Text = (Get-RecordHotkey).Replace('+', ' + ')
+    $rulerHotkeyLabel.Text = (Get-RulerHotkey).Replace('+', ' + ')
+    $storagePathLabel.Text = Get-StorageRoot
+    $retentionValueLabel.Text = ('{0} days' -f (Get-RetentionDays))
+    if ($formatBox.SelectedItem -ne (Get-RecordingFormat)) { $formatBox.SelectedItem = Get-RecordingFormat }
+    if ($fpsBox.SelectedItem -ne [string](Get-RecordingFps)) { $fpsBox.SelectedItem = [string](Get-RecordingFps) }
+    if ((Get-ToggleChecked -Toggle $cursorToggle) -ne (Get-RecordingCaptureCursor)) {
+        Set-ToggleChecked -Toggle $cursorToggle -Checked (Get-RecordingCaptureCursor)
+    }
+    $ffmpegStatus = if (Test-ClipDeckTool -Name 'ffmpeg.exe') { 'ffmpeg ok' } else { 'ffmpeg missing' }
+    $ocrStatus = if (Test-ClipDeckTool -Name 'tesseract.exe') { 'ocr ok' } else { 'ocr missing dependency' }
+    $dependencyLabel.Text = ($ffmpegStatus + ' | ' + $ocrStatus)
+    $dependencyLabel.ForeColor = if ($ocrStatus -like '*missing*') { $yellow } else { $green }
+    $idleHint.Text = ('Idle {0}h | shot {1} | record {2} {3}fps | OCR {4}' -f $settingsHours, (Get-ScreenshotHotkey), (Get-RecordingFormat), (Get-RecordingFps), (Get-OcrHotkey))
 
     $form.Text = 'ClipDeck'
 }

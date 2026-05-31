@@ -19,6 +19,7 @@ $appName = 'ClipDeck'
 $appDir = Join-Path $env:APPDATA $appName
 $srcDir = Join-Path $SourceRoot 'src'
 $assetsDir = Join-Path $SourceRoot 'assets'
+$toolsDir = Join-Path $assetsDir 'tools'
 $helper = Join-Path $srcDir 'clipboard-second-paste.ps1'
 $watchdog = Join-Path $srcDir 'clipboard-hotkeys-watchdog.ps1'
 $ui = Join-Path $srcDir 'clipdeck-ui.ps1'
@@ -27,6 +28,7 @@ $installedHelper = Join-Path $appDir 'clipboard-second-paste.ps1'
 $installedWatchdog = Join-Path $appDir 'clipboard-hotkeys-watchdog.ps1'
 $installedUi = Join-Path $appDir 'clipdeck-ui.ps1'
 $installedIcon = Join-Path $appDir 'ClipDeck.ico'
+$installedToolsDir = Join-Path $appDir 'tools'
 $settingsPath = Join-Path $appDir 'clipdeck-settings.json'
 $dittoPath = 'C:\Program Files\Ditto\Ditto.exe'
 $taskName = 'ClipDeck Watchdog'
@@ -54,6 +56,10 @@ Copy-Item -LiteralPath $ui -Destination $installedUi -Force
 if (Test-Path -LiteralPath $icon) {
     Copy-Item -LiteralPath $icon -Destination $installedIcon -Force
 }
+if (Test-Path -LiteralPath $toolsDir) {
+    New-Item -ItemType Directory -Force -Path $installedToolsDir | Out-Null
+    Copy-Item -Path (Join-Path $toolsDir '*') -Destination $installedToolsDir -Recurse -Force
+}
 
 if (-not (Test-Path -LiteralPath $settingsPath)) {
     @{
@@ -63,8 +69,18 @@ if (-not (Test-Path -LiteralPath $settingsPath)) {
         pasteCurrentHotkey = 'Ctrl+1'
         pasteSecondHotkey = 'Ctrl+2'
         pasteThirdHotkey = 'Ctrl+3'
+        storageRoot = (Join-Path ([Environment]::GetFolderPath('Desktop')) 'ClipDeck')
+        retentionDays = 7
+        lastCleanupUtc = ''
+        screenshotHotkey = 'Win+Shift+D'
+        ocrHotkey = 'Win+Shift+Z'
+        recordHotkey = 'Win+Shift+R'
+        rulerHotkey = 'Alt+Shift+W'
+        recordingFormat = 'MP4'
+        recordingFps = 24
+        recordingCaptureCursor = $true
     } |
-        ConvertTo-Json -Depth 3 |
+        ConvertTo-Json -Depth 5 |
         Set-Content -LiteralPath $settingsPath -Encoding UTF8
 }
 

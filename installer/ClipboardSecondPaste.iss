@@ -27,6 +27,7 @@ Source: "..\src\clipboard-second-paste.ps1"; DestDir: "{app}\src"; Flags: ignore
 Source: "..\src\clipboard-hotkeys-watchdog.ps1"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\src\clipdeck-ui.ps1"; DestDir: "{app}\src"; Flags: ignoreversion
 Source: "..\assets\ClipDeck.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
+Source: "..\assets\tools\*"; DestDir: "{app}\assets\tools"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\scripts\install.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "..\scripts\uninstall.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 
